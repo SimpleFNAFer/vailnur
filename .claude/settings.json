@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; ext=\"${f##*.}\"; if [ \"$ext\" = \"py\" ]; then command -v ruff >/dev/null && ruff format \"$f\"; elif [ \"$ext\" = \"go\" ]; then command -v gofmt >/dev/null && gofmt -w \"$f\"; fi; } 2>/dev/null || true",
+            "timeout": 15,
+            "statusMessage": "Formatting..."
+          }
+        ]
+      }
+    ]
+  }
+}
