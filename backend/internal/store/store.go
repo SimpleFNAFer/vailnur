@@ -37,13 +37,17 @@ type ScanJob struct {
 
 // ExploitResult is the outcome of sending one exploit request.
 type ExploitResult struct {
-	TargetID        string              `json:"target_id"`
-	Method          string              `json:"method"`
-	URL             string              `json:"url"`
-	Params          map[string][]string `json:"params"`
-	StatusCode      int                 `json:"status_code"`
-	ResponseExcerpt string              `json:"response_excerpt"`
-	Error           string              `json:"error,omitempty"`
+	TargetID            string              `json:"target_id"`
+	Method              string              `json:"method"`
+	URL                 string              `json:"url"`
+	Params              map[string][]string `json:"params"`
+	StatusCode          int                 `json:"status_code"`
+	ResponseExcerpt     string              `json:"response_excerpt"`
+	ResponseSize        int64               `json:"response_size,omitempty"`
+	ResponseContentType string              `json:"response_content_type,omitempty"`
+	ResponseURL         string              `json:"response_url,omitempty"`
+	ResponseFile        string              `json:"-"`
+	Error               string              `json:"error,omitempty"`
 }
 
 // ExploitJob holds all state for an exploit job.
@@ -55,16 +59,18 @@ type ExploitJob struct {
 
 // Store is a thread-safe in-memory job store.
 type Store struct {
-	mu          sync.RWMutex
-	scanJobs    map[string]*ScanJob
-	exploitJobs map[string]*ExploitJob
+	mu            sync.RWMutex
+	scanJobs      map[string]*ScanJob
+	exploitJobs   map[string]*ExploitJob
+	responseFiles map[string]string // fileID -> tmp file path
 }
 
 // New creates an empty Store.
 func New() *Store {
 	return &Store{
-		scanJobs:    make(map[string]*ScanJob),
-		exploitJobs: make(map[string]*ExploitJob),
+		scanJobs:      make(map[string]*ScanJob),
+		exploitJobs:   make(map[string]*ExploitJob),
+		responseFiles: make(map[string]string),
 	}
 }
 
@@ -94,4 +100,18 @@ func (s *Store) GetExploitJob(id string) *ExploitJob {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.exploitJobs[id]
+}
+
+// SetResponseFile stores a mapping from a unique fileID to a tmp file path.
+func (s *Store) SetResponseFile(fileID, path string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.responseFiles[fileID] = path
+}
+
+// GetResponseFile returns the tmp file path for a given fileID.
+func (s *Store) GetResponseFile(fileID string) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.responseFiles[fileID]
 }

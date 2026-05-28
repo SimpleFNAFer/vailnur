@@ -346,10 +346,24 @@ input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent);
 .detail-header {
   font-size: 11px; font-weight: 600; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.detail-header-meta {
+  font-size: 11px; font-weight: 400; color: var(--text-faint);
+  text-transform: none; letter-spacing: 0;
+}
+.btn-download-response {
+  display: inline-block; margin-top: 8px; font-size: 12px;
+  color: var(--accent); text-decoration: none;
+  border: 1px solid var(--accent); border-radius: 4px;
+  padding: 3px 10px; transition: background .15s, color .15s;
+}
+.btn-download-response:hover {
+  background: var(--accent); color: #fff;
 }
 .detail-body {
   font-family: 'Consolas','Menlo',monospace; font-size: 12px; color: var(--text);
-  white-space: pre-wrap; word-break: break-all; max-height: 300px;
+  white-space: pre-wrap; word-break: break-all; max-height: 180px;
   overflow-y: auto; background: var(--surface-2);
   border: 1px solid var(--border); border-radius: 4px; padding: 10px;
 }

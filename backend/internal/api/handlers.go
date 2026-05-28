@@ -1,11 +1,15 @@
 package api
 
 import (
+	"archive/zip"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -36,6 +40,8 @@ func NewRouter(s *store.Store, ml *mlclient.Client) http.Handler {
 	r.Get("/api/scan/{id}", h.getScan)
 	r.Post("/api/exploit", h.postExploit)
 	r.Get("/api/exploit/{id}", h.getExploit)
+	r.Get("/api/exploit/response/{id}", h.getExploitResponse)
+	r.Get("/api/report", h.getReport)
 
 	return r
 }
@@ -238,12 +244,19 @@ func (h *Handler) runExploit(jobID string, targets []exploitTarget) {
 		})
 
 		er := store.ExploitResult{
-			TargetID:        res.TargetID,
-			Method:          t.Method,
-			URL:             t.URL,
-			Params:          params,
-			StatusCode:      res.StatusCode,
-			ResponseExcerpt: res.ResponseExcerpt,
+			TargetID:            res.TargetID,
+			Method:              t.Method,
+			URL:                 t.URL,
+			Params:              params,
+			StatusCode:          res.StatusCode,
+			ResponseExcerpt:     res.ResponseExcerpt,
+			ResponseSize:        res.ResponseSize,
+			ResponseContentType: res.ContentType,
+		}
+		if res.ResponseFile != "" {
+			fileID := uuid.NewString()
+			h.store.SetResponseFile(fileID, res.ResponseFile)
+			er.ResponseURL = "/api/exploit/response/" + fileID
 		}
 		if res.Err != nil {
 			er.Error = res.Err.Error()
@@ -266,6 +279,158 @@ func (h *Handler) getExploit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonOK(w, job)
+}
+
+// --- GET /api/exploit/response/{id} ---
+
+func (h *Handler) getExploitResponse(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	path := h.store.GetResponseFile(id)
+	if path == "" {
+		jsonError(w, "response file not found", http.StatusNotFound)
+		return
+	}
+	if _, err := os.Stat(path); err != nil {
+		jsonError(w, "response file not found on disk", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Disposition", `attachment; filename="response.bin"`)
+	http.ServeFile(w, r, path)
+}
+
+// --- GET /api/report ---
+
+type reportResultJSON struct {
+	TargetID            string              `json:"target_id"`
+	Method              string              `json:"method"`
+	URL                 string              `json:"url"`
+	Params              map[string][]string `json:"params"`
+	StatusCode          int                 `json:"status_code"`
+	ResponseExcerpt     string              `json:"response_excerpt"`
+	ResponseSize        int64               `json:"response_size,omitempty"`
+	ResponseContentType string              `json:"response_content_type,omitempty"`
+	ResponsePath        string              `json:"response_path,omitempty"`
+	Error               string              `json:"error,omitempty"`
+}
+
+type reportJSON struct {
+	ReportDate string `json:"report_date"`
+	Scan       *struct {
+		TargetURL    string            `json:"target_url"`
+		PagesCrawled int               `json:"pages_crawled"`
+		Candidates   []store.Candidate `json:"candidates"`
+	} `json:"scan,omitempty"`
+	Exploit *struct {
+		Results []reportResultJSON `json:"results"`
+	} `json:"exploit,omitempty"`
+}
+
+func (h *Handler) getReport(w http.ResponseWriter, r *http.Request) {
+	scanID := r.URL.Query().Get("scan_id")
+	exploitID := r.URL.Query().Get("exploit_id")
+
+	if scanID == "" && exploitID == "" {
+		jsonError(w, "scan_id or exploit_id required", http.StatusBadRequest)
+		return
+	}
+
+	var scanJob *store.ScanJob
+	if scanID != "" {
+		scanJob = h.store.GetScanJob(scanID)
+		if scanJob == nil {
+			jsonError(w, "scan job not found", http.StatusNotFound)
+			return
+		}
+	}
+
+	var exploitJob *store.ExploitJob
+	if exploitID != "" {
+		exploitJob = h.store.GetExploitJob(exploitID)
+		if exploitJob == nil {
+			jsonError(w, "exploit job not found", http.StatusNotFound)
+			return
+		}
+	}
+
+	rep := reportJSON{ReportDate: time.Now().UTC().Format(time.RFC3339)}
+
+	if scanJob != nil {
+		rep.Scan = &struct {
+			TargetURL    string            `json:"target_url"`
+			PagesCrawled int               `json:"pages_crawled"`
+			Candidates   []store.Candidate `json:"candidates"`
+		}{
+			TargetURL:    scanJob.TargetURL,
+			PagesCrawled: scanJob.PagesCrawled,
+			Candidates:   scanJob.Candidates,
+		}
+	}
+
+	type fileEntry struct{ zipName, diskPath string }
+	var files []fileEntry
+
+	if exploitJob != nil {
+		results := make([]reportResultJSON, len(exploitJob.Results))
+		for i, er := range exploitJob.Results {
+			rr := reportResultJSON{
+				TargetID:            er.TargetID,
+				Method:              er.Method,
+				URL:                 er.URL,
+				Params:              er.Params,
+				StatusCode:          er.StatusCode,
+				ResponseExcerpt:     er.ResponseExcerpt,
+				ResponseSize:        er.ResponseSize,
+				ResponseContentType: er.ResponseContentType,
+				Error:               er.Error,
+			}
+			if er.ResponseURL != "" {
+				parts := strings.Split(er.ResponseURL, "/")
+				fileID := parts[len(parts)-1]
+				diskPath := h.store.GetResponseFile(fileID)
+				if diskPath != "" {
+					zipName := "responses/" + fileID + ".bin"
+					rr.ResponsePath = zipName
+					files = append(files, fileEntry{zipName, diskPath})
+				}
+			}
+			results[i] = rr
+		}
+		rep.Exploit = &struct {
+			Results []reportResultJSON `json:"results"`
+		}{Results: results}
+	}
+
+	reportBytes, err := json.MarshalIndent(rep, "", "  ")
+	if err != nil {
+		jsonError(w, "failed to marshal report", http.StatusInternalServerError)
+		return
+	}
+
+	ts := time.Now().UTC().Format("2006-01-02T15-04-05")
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="csrf-report-%s.zip"`, ts))
+
+	zw := zip.NewWriter(w)
+	defer zw.Close() //nolint:errcheck
+
+	jf, err := zw.Create("report.json")
+	if err == nil {
+		jf.Write(reportBytes) //nolint:errcheck
+	}
+
+	for _, fe := range files {
+		f, err := os.Open(fe.diskPath)
+		if err != nil {
+			continue
+		}
+		zf, err := zw.Create(fe.zipName)
+		if err != nil {
+			f.Close()
+			continue
+		}
+		io.Copy(zf, f) //nolint:errcheck
+		f.Close()
+	}
 }
 
 // deduplicateRequests removes requests with identical method+url+params.

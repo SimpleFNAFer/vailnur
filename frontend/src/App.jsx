@@ -1,29 +1,23 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { startScan, getScan, startExploit, getExploit } from './api.js'
 
+function formatBytes(n) {
+  if (!n) return ''
+  if (n < 1024) return `${n} Б`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} КБ`
+  return `${(n / 1024 / 1024).toFixed(1)} МБ`
+}
+
 // ---------------------------------------------------------------------------
-// Скачать файл отчёта
+// Скачать отчёт (ZIP)
 // ---------------------------------------------------------------------------
 function downloadReport(scanResult, exploitResult) {
-  const report = {
-    report_date: new Date().toISOString(),
-    scan: scanResult
-      ? {
-          target_url:    scanResult.target_url,
-          pages_crawled: scanResult.pages_crawled,
-          candidates:    scanResult.candidates ?? [],
-        }
-      : null,
-    exploit: exploitResult
-      ? { results: exploitResult.results ?? [] }
-      : null,
-  }
-  const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' })
+  const params = new URLSearchParams()
+  if (scanResult?.job_id)   params.set('scan_id',    scanResult.job_id)
+  if (exploitResult?.job_id) params.set('exploit_id', exploitResult.job_id)
   const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `csrf-report-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`
+  a.href = `/api/report?${params}`
   a.click()
-  URL.revokeObjectURL(a.href)
 }
 
 // ---------------------------------------------------------------------------
@@ -562,8 +556,22 @@ function ExploitResultsSection({ exploitResult, scanResult, onDownload }) {
                             <pre className="detail-body" style={{ marginBottom: 10 }}>
                               {formatParamsDetailed(r.params)}
                             </pre>
-                            <div className="detail-header">Тело ответа</div>
+                            <div className="detail-header">
+                              Тело ответа
+                              {r.response_size > 0 && (
+                                <span className="detail-header-meta">{formatBytes(r.response_size)}</span>
+                              )}
+                            </div>
                             <pre className="detail-body">{r.response_excerpt || '(пустой ответ)'}</pre>
+                            {r.response_url && (
+                              <a
+                                href={r.response_url}
+                                download="response.bin"
+                                className="btn-download-response"
+                              >
+                                ↓ Скачать полный ответ
+                              </a>
+                            )}
                           </div>
                         </td>
                       </tr>
