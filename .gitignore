@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Claude Code
+.claude/
+
+# OS
+.DS_Store

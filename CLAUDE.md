@@ -4,60 +4,160 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Multilingual security project with three components that communicate at runtime:
+CSRF vulnerability detection system for authorized penetration testing. Three components communicate at runtime:
 
 ```
 frontend/ → backend/ → ml/
-(React/Vue)  (Go)      (Python + TensorFlow)
+(React 18)   (Go)      (Python + TensorFlow)
 ```
 
-- **ml/** — Python: TensorFlow model with three branches and two levels, training datasets, saved model file, and an HTTP server that accepts inference requests
-- **backend/** — Go: HTTP server that proxies/transforms requests from the frontend to the Python ML server
-- **frontend/** — React or Vue (TBD): user-facing UI that talks to the Go backend
+- **ml/** — Python: stacked generalisation model (3 GBT branches + TF linear meta-classifier), HTTP inference server
+- **backend/** — Go: BFS web crawler + HTML parser, ML client, CSRF exploit executor, REST API
+- **frontend/** — React 18 (Vite): single-page pentest UI
 
 ## Monorepo Structure
 
-Each component lives in its own top-level directory with its own dependency management:
+```
+ml/           # Python package — model.py, server.py, requirements.txt, saved_models/
+backend/      # Go module — go.mod, main.go, internal/{api,crawler,mlclient,exploit,store}/
+frontend/     # Vite/React — package.json, vite.config.js, src/
+assets/       # Training datasets: mitch/, dwvm/, hackerone/
+.venv/        # Python virtualenv (Python 3.14 + tf-nightly + sklearn + fastapi)
+```
 
+## Ports
+
+| Service | Port | Notes |
+|---------|------|-------|
+| Python ML server | **8000** | uvicorn, FastAPI |
+| Go backend | **8080** | chi router |
+| Frontend dev server | **5173** | Vite, proxies /api → :8080 |
+
+## Starting All Services
+
+```bash
+# 1. ML server (from project root)
+.venv/bin/uvicorn ml.server:app --host 0.0.0.0 --port 8000
+
+# 2. Go backend (from backend/)
+go run .
+
+# 3. Frontend (from frontend/)
+npm run dev
 ```
-ml/          # Python package (pyproject.toml or requirements.txt)
-backend/     # Go module (go.mod)
-frontend/    # JS/TS project (package.json)
-```
+
+Open **http://localhost:5173**.
 
 ## Inter-Service Communication
 
-- Frontend → Go backend: REST or GraphQL (decide and document here when settled)
-- Go backend → Python ML server: HTTP POST with inference params, JSON response
-- Python ML server port: **TBD** (document the agreed port here once fixed)
-- Go backend port: **TBD**
-- Frontend dev port: **TBD**
+- **Frontend → Go backend**: REST JSON over HTTP, base path `/api`
+- **Go backend → Python ML server**: `POST http://localhost:8000/predict/batch`
+- All dependency installs must use `.venv/bin/pip` — never system pip
 
 ## Python ML Module (`ml/`)
 
-- Framework: TensorFlow
-- Model architecture: three branches, two levels (details TBD — update this section when defined)
-- Datasets: three datasets for training (details TBD)
-- The Python server receives requests with model input params and returns model predictions
-- When adding new model code, keep the training pipeline, model definition, and server in separate files
+### Model Architecture
+
+Stacked generalisation, two levels:
+
+1. **Level 1 — three GBT branches** (sklearn `GradientBoostingClassifier`, 300 estimators):
+   - `branch_mitch` — trained on `assets/mitch/dataset/features_matrix.csv`
+   - `branch_dwvm` — trained on `assets/dwvm/features_matrix.csv`
+   - `branch_hackerone` — trained on `assets/hackerone/features_matrix.csv`
+   - All 52 features go into every branch
+
+2. **Level 2 — TF linear meta-classifier** (`Dense(1, sigmoid)`):
+   - Input: `[p_mitch, p_dwvm, p_hackerone]`
+   - Output: final CSRF probability
+
+Training uses K-fold out-of-fold predictions (stacked generalisation) to avoid data leakage.
+
+### Saved Models
+
+```
+ml/saved_models/
+  branch_mitch.pkl
+  branch_dwvm.pkl
+  branch_hackerone.pkl
+  meta_classifier.keras
+```
+
+### Feature Schema (52 columns)
+
+5 numeric + 42 keyword-in-path/params flags (21 keywords × 2) + 5 HTTP method flags.
+See `assets/mitch/dataset/README.md` for full column descriptions.
+
+### Files
+
+- `model.py` — training pipeline + `CSRFDetector` inference class
+- `server.py` — FastAPI HTTP server wrapping `CSRFDetector`
+
+### ML Server API
+
+```
+GET  /health
+POST /predict        { method, url, params } → { label, probability, branch_probs }
+POST /predict/batch  [{ method, url, params }] → [{ label, probability, branch_probs }]
+```
+
+To retrain: `python ml/model.py` (from project root, inside venv)
 
 ## Go Backend (`backend/`)
 
-- Sends requests to the Python ML server and forwards responses to the frontend
-- Details TBD — update when the backend design is settled
+### Internal Packages
+
+| Package | Responsibility |
+|---------|---------------|
+| `internal/api` | chi router, CORS middleware, HTTP handlers, request deduplication |
+| `internal/crawler` | BFS web crawler — extracts `<a href>` (GET) and `<form>` (GET/POST) with `<input>`, `<textarea>`, `<select>` fields |
+| `internal/mlclient` | HTTP client for `/predict/batch` on the ML server |
+| `internal/exploit` | Executes exploit HTTP requests (GET with query params / POST with form body) |
+| `internal/store` | In-memory job store (sync.RWMutex) for scan and exploit jobs |
+
+### REST API
+
+```
+POST /api/scan           { url, depth?, max_pages? }  → { job_id }
+GET  /api/scan/{id}      → ScanJob (status, candidates[])
+POST /api/exploit        { targets[] }                → { job_id }
+GET  /api/exploit/{id}   → ExploitJob (status, results[])
+```
+
+Jobs run in goroutines; clients poll GET endpoints.
+
+### Crawler Notes
+
+- BFS, same-domain only (Host match)
+- Deduplicates requests by `method|url|sorted_params` before ML analysis
+- Query params from `<a href="?key=val">` are moved into the `params` dict (not left in URL)
+- Skips `input type="submit/button/reset/image"` from form params
 
 ## Frontend (`frontend/`)
 
-- Framework TBD (React, Vue, or another reactive framework)
-- Details TBD — update when the framework is chosen
+- React 18 + Vite 5, no external UI libraries
+- Single page, three sections:
+  1. **Scan** — URL input, depth/max_pages settings, scan progress
+  2. **CSRF Candidates** — table with checkboxes, probability bar, inline params editor
+  3. **Exploit Results** — status codes (colored 2xx/3xx/4xx), response excerpts
+- `/api` requests are proxied to `http://localhost:8080` by Vite dev server
+
+## Datasets (`assets/`)
+
+| Dataset | Source | Requests | CSRF rate |
+|---------|--------|----------|-----------|
+| mitch | Academic paper | 6204 | 14.9% |
+| dwvm | DVWA | 617 | 19.1% |
+| hackerone | HackerOne disclosures | 6102 | 41.9% |
+
+All datasets share the same 54-column schema: `reqId`, `flag`, 52 feature columns.
 
 ## Security
 
-This is a security-focused project. When writing code:
+This tool is for **authorized penetration testing only**. When writing code:
 - Validate and sanitize all inputs at each service boundary
 - Never expose raw model internals or internal error details to the frontend
 - Use HTTPS between services in production
-- Document any security assumptions in the relevant component's README
+- The exploit module must only be used against systems you have permission to test
 
 ## Development Notes
 
