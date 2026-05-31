@@ -40,7 +40,7 @@ from fastapi import FastAPI, Form, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 import secrets
 
-app = FastAPI(title="VulnApp — CSRF Test Target")
+app = FastAPI(title="CSRF-уязвимое приложение — CSRF Test Target")
 
 # Fake in-memory state (resets on restart)
 _users = {
@@ -51,7 +51,7 @@ _users = {
 _posts = [
     {"id": 1, "author": "alice", "title": "Hello World",      "body": "First post!"},
     {"id": 2, "author": "bob",   "title": "My thoughts",      "body": "Interesting times."},
-    {"id": 3, "author": "admin", "title": "Site announcement","body": "Welcome to VulnApp."},
+    {"id": 3, "author": "admin", "title": "Site announcement","body": "Welcome to CSRF-уязвимое приложение."},
 ]
 _follows: set[tuple] = {("bob", "alice")}
 
@@ -63,7 +63,7 @@ REAL_TOKEN = "statictoken"
 
 NAV = """
 <nav>
-  <b class="logo">VulnApp</b>
+  <b class="logo">CSRF-уязвимое приложение</b>
   <a href="/">Главная</a>
   <a href="/dashboard">Панель</a>
   <a href="/account">Аккаунт</a>
@@ -220,7 +220,7 @@ NAV = """
 def page(title: str, body: str) -> HTMLResponse:
     return HTMLResponse(
         f'<!DOCTYPE html><html><head><meta charset="utf-8">'
-        f'<title>{title} — VulnApp</title></head>'
+        f'<title>{title} — CSRF-уязвимое приложение</title></head>'
         f'<body>{NAV}<div class="page-content">{body}</div></body></html>'
     )
 
@@ -270,7 +270,7 @@ def home():
                  f'<td>{desc}</td></tr>')
     return page("Главная", f"""
 <div class="card">
-  <h2>VulnApp — тестовое приложение для CSRF</h2>
+  <h2>Список запросов</h2>
   <p>Намеренно уязвимое веб-приложение для тестирования CSRF-детектора.</p>
   <p>Вы вошли как: <b>alice</b> (демо — реальной авторизации нет)</p>
   <table>
