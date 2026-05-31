@@ -86,13 +86,11 @@ function formatParams(params) {
 
 function ProbBar({ probability }) {
   const pct = Math.round((probability ?? 0) * 100)
-  let color = '#4caf50'
-  if (pct >= 70) color = '#f44336'
-  else if (pct >= 40) color = '#ff9800'
+  const level = pct >= 70 ? 'prob-high' : pct >= 40 ? 'prob-mid' : 'prob-low'
   return (
-    <div className="prob-bar-wrap">
-      <div className="prob-bar-fill" style={{ width: `${pct}%`, background: color }} />
-      <span className="prob-bar-label" style={{ color }}>{pct}%</span>
+    <div className={`prob-bar-wrap ${level}`}>
+      <div className="prob-bar-fill" style={{ width: `${pct}%` }} />
+      <span className="prob-bar-label">{pct}%</span>
     </div>
   )
 }
@@ -599,9 +597,9 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <div className="logo">
-          <span className="logo-text">CSRF Pentest</span>
+          <span className="logo-text">Автоматическое тестирование CSRF</span>
         </div>
-        <div className="header-sub">Автоматизированный сканер и инструмент эксплуатации CSRF</div>
+        <div className="header-sub">Москва, 2026</div>
         <div className="header-right">
           <ThemeSwitcher theme={theme} setTheme={setTheme} />
         </div>

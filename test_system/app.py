@@ -101,81 +101,116 @@ NAV = """
 })();
 </script>
 <style>
-  :root {
-    --bg:#0f3460;--surface:#16213e;--surface2:#0f2040;--border:#2a3a6a;
-    --text:#eee;--text2:#a8dadc;--nav-bg:#1a1a2e;--nav-text:#a8dadc;--nav-border:#2a3a6a;
-    --accent:#e94560;--ok:#4caf50;--err:#e94560;
-    --input-bg:#0f3460;--input-border:#2a3a6a;
-    --tag-vuln-bg:#4a0000;--tag-vuln-text:#fca5a5;--tag-vuln-border:#7f1d1d;
-    --tag-safe-bg:#052e16;--tag-safe-text:#4ade80;--tag-safe-border:#166534;
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&display=swap');
+
+  /* ── Тёмная тема (MD3 · МТУСИ palette) ── */
+  :root,[data-theme="dark"]{
+    --bg:#100F1E;--surface:#1B1930;--surface2:#141226;--border:#3A375A;--border2:#252340;
+    --text:#E6E1F0;--text2:#C1BACE;--text-faint:#5C5873;
+    --nav-bg:#1B1930;--nav-text:#C1BACE;--nav-border:#3A375A;
+    --accent:#BCA7FF;--accent-on:#100F1E;
+    --ok:#76D7C4;--err:#F4A4B0;
+    --input-bg:#141226;--input-border:#3A375A;
+    --tag-vuln-bg:#1C0A14;--tag-vuln-text:#F4A4B0;--tag-vuln-border:#7F1D3C;
+    --tag-safe-bg:#082420;--tag-safe-text:#76D7C4;--tag-safe-border:#1A5C52;
+    --card-shadow:none;
+    color-scheme:dark;
   }
-  [data-theme="light"] {
-    --bg:#f1f5f9;--surface:#ffffff;--surface2:#f8fafc;--border:#cbd5e1;
-    --text:#1e293b;--text2:#334155;
-    --nav-bg:#ffffff;--nav-text:#374151;--nav-border:#e2e8f0;
-    --accent:#e94560;--ok:#15803d;--err:#dc2626;
-    --input-bg:#f8fafc;--input-border:#cbd5e1;
-    --tag-vuln-bg:#fef2f2;--tag-vuln-text:#b91c1c;--tag-vuln-border:#fca5a5;
-    --tag-safe-bg:#f0fdf4;--tag-safe-text:#15803d;--tag-safe-border:#86efac;
+
+  /* ── Светлая тема ── */
+  [data-theme="light"]{
+    --bg:#F3EFF9;--surface:#FFFFFF;--surface2:#F0EBF9;--border:#CCC7DC;--border2:#DDD8EB;
+    --text:#1C1B2E;--text2:#49454F;--text-faint:#79747E;
+    --nav-bg:#FFFFFF;--nav-text:#49454F;--nav-border:#CCC7DC;
+    --accent:#372579;--accent-on:#FFFFFF;
+    --ok:#00695C;--err:#AD1457;
+    --input-bg:#F0EBF9;--input-border:#CCC7DC;
+    --tag-vuln-bg:#FCE4EC;--tag-vuln-text:#AD1457;--tag-vuln-border:#F48FB1;
+    --tag-safe-bg:#E8F8F5;--tag-safe-text:#00695C;--tag-safe-border:#80CBC4;
+    --card-shadow:0 1px 3px rgba(55,37,121,.08),0 1px 2px rgba(55,37,121,.06);
+    color-scheme:light;
   }
+
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.5;transition:background .2s,color .2s}
-  nav{background:var(--nav-bg);border-bottom:1px solid var(--nav-border);padding:10px 20px;display:flex;gap:20px;align-items:center;flex-wrap:wrap}
-  nav a{color:var(--nav-text);text-decoration:none;font-size:14px}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;transition:background .2s,color .2s}
+
+  /* ── Навигация ── */
+  nav{background:var(--nav-bg);border-bottom:1px solid var(--nav-border);padding:12px 24px;display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+  nav a{color:var(--nav-text);text-decoration:none;font-size:14px;transition:color .15s}
   nav a:hover{color:var(--accent)}
-  .logo{color:var(--accent);font-size:18px;font-weight:700;white-space:nowrap}
+  .logo{font-family:'Montserrat','Segoe UI',sans-serif;color:var(--accent);font-size:18px;font-weight:700;white-space:nowrap;letter-spacing:.04em}
   .nav-right{margin-left:auto;display:flex;align-items:center;gap:16px}
-  .theme-sw{display:flex;border:1px solid #444;border-radius:6px;overflow:hidden}
-  .theme-sw button{padding:4px 10px;font-size:12px;background:transparent;border:none;cursor:pointer;color:var(--nav-text);transition:background .15s}
-  .theme-sw button:hover{background:rgba(255,255,255,.1)}
-  .theme-sw button.active{background:var(--accent);color:#fff}
+  .theme-sw{display:flex;border:1px solid var(--nav-border);border-radius:8px;overflow:hidden}
+  .theme-sw button{padding:4px 10px;font-size:14px;background:transparent;border:none;cursor:pointer;color:var(--nav-text);transition:background .15s}
+  .theme-sw button:hover{background:var(--surface2)}
+  .theme-sw button.active{background:var(--accent);color:var(--accent-on)}
 
-  /* Основной контент */
-  .page-content{padding:24px 20px;max-width:780px}
-  .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:24px;margin:0 20px 24px}
-  .card h2{margin:0 0 18px;color:var(--accent);font-size:17px}
-  .card h3{margin:22px 0 10px;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px}
+  /* ── Контент ── */
+  .page-content{padding:28px 24px;max-width:800px}
+  .card{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:12px;padding:24px;margin:0 0 24px;
+    box-shadow:var(--card-shadow);
+  }
+  .card h2{
+    margin:0 0 20px;font-size:17px;font-weight:700;
+    font-family:'Montserrat','Segoe UI',sans-serif;
+    color:var(--accent);letter-spacing:.02em;
+  }
+  .card h3{margin:22px 0 10px;font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px}
   .card h3:first-of-type{margin-top:0}
-  .card > form + form{border-top:1px solid var(--border);padding-top:20px;margin-top:4px}
-  /* Заголовок таблицы, стоящий после формы или другого блока */
-  .card > h3.section-heading{margin-top:28px;padding-top:20px;border-top:1px solid var(--border)}
-  .card p{margin-bottom:12px;font-size:14px}
+  .card>form+form{border-top:1px solid var(--border);padding-top:20px;margin-top:4px}
+  .card>h3.section-heading{margin-top:28px;padding-top:20px;border-top:1px solid var(--border)}
+  .card p{margin-bottom:12px;font-size:14px;color:var(--text2)}
 
-  /* Формы */
+  /* ── Формы ── */
   input,select,textarea{
-    width:100%;padding:8px 10px;margin:5px 0 10px;
+    width:100%;padding:9px 12px;margin:5px 0 12px;
     background:var(--input-bg);color:var(--text);
-    border:1px solid var(--input-border);border-radius:5px;
-    font-size:13px;font-family:inherit;
+    border:1px solid var(--input-border);border-radius:10px;
+    font-size:13px;font-family:inherit;outline:none;
+    transition:border-color .15s,box-shadow .15s;
   }
-  input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
-  label{font-size:13px;display:inline-flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer}
-  label input[type=checkbox]{width:auto;margin:0}
+  [data-theme="dark"] input,[data-theme="dark"] select,[data-theme="dark"] textarea{color-scheme:dark}
+  [data-theme="light"] input,[data-theme="light"] select,[data-theme="light"] textarea{color-scheme:light}
+  input:focus,select:focus,textarea:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(188,167,255,.18);
+  }
+  [data-theme="light"] input:focus,[data-theme="light"] select:focus,[data-theme="light"] textarea:focus{
+    box-shadow:0 0 0 3px rgba(55,37,121,.14);
+  }
+  label{font-size:13px;display:inline-flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;color:var(--text2)}
+  label input[type=checkbox]{width:auto;margin:0;accent-color:var(--accent)}
+
   button[type=submit],button.action{
-    display:inline-block;padding:8px 20px;
-    background:var(--accent);color:#fff;border:none;border-radius:5px;
-    cursor:pointer;font-size:13px;font-family:inherit;margin-top:4px;
-    transition:opacity .15s;
+    display:inline-flex;align-items:center;padding:8px 22px;
+    background:var(--accent);color:var(--accent-on);
+    border:none;border-radius:20px;
+    cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;margin-top:4px;
+    transition:opacity .15s,box-shadow .15s;letter-spacing:.02em;
   }
-  button[type=submit]:hover,button.action:hover{opacity:.85}
+  button[type=submit]:hover,button.action:hover{
+    opacity:.9;box-shadow:0 2px 8px rgba(55,37,121,.3);
+  }
 
-  /* Таблицы */
-  .ok{color:var(--ok)} .err{color:var(--err)}
+  /* ── Таблицы ── */
+  .ok{color:var(--ok);font-weight:600} .err{color:var(--err);font-weight:600}
   table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
-  th{padding:9px 10px;border-bottom:2px solid var(--border);text-align:left;font-weight:600;color:var(--text2)}
-  td{padding:8px 10px;border-bottom:1px solid var(--border)}
+  th{padding:9px 12px;border-bottom:2px solid var(--border);text-align:left;font-weight:600;color:var(--text2)}
+  td{padding:9px 12px;border-bottom:1px solid var(--border2)}
+  tr:last-child td{border-bottom:none}
 
-  /* Ссылки внутри карточек */
+  /* ── Ссылки ── */
   .card a{color:var(--accent);text-decoration:none}
   .card a:hover{text-decoration:underline}
 
-  /* Встроенные формы в таблицах (кнопки удаления) */
+  /* ── Кнопки в ячейках таблиц ── */
   td form{margin:0}
-  td button[type=submit]{padding:4px 12px;font-size:12px;margin-top:0;opacity:.85}
-  td button[type=submit]:hover{opacity:1}
+  td button[type=submit]{padding:4px 14px;font-size:12px;margin-top:0;border-radius:14px}
 
-  /* Метки */
-  .tag{display:inline-block;padding:2px 9px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap}
+  /* ── Метки ── */
+  .tag{display:inline-block;padding:2px 10px;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap;letter-spacing:.04em}
   .vuln{background:var(--tag-vuln-bg);color:var(--tag-vuln-text);border:1px solid var(--tag-vuln-border)}
   .safe{background:var(--tag-safe-bg);color:var(--tag-safe-text);border:1px solid var(--tag-safe-border)}
 </style>
